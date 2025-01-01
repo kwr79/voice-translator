@@ -25,7 +25,6 @@ const VoiceTranslator = () => {
   
   const recognitionRef = useRef<any>(null);
   const lastSpeechRef = useRef<number>(Date.now());
-  const lastTranscriptRef = useRef<string>('');
 
   useEffect(() => {
     if ('webkitSpeechRecognition' in window) {
@@ -40,32 +39,20 @@ const VoiceTranslator = () => {
         const results = event.results as unknown as SpeechRecognitionResults;
         const transcript = results[results.length - 1][0].transcript;
 
-        // If there's been a pause of more than 1.4 seconds, add a newline
-        if (currentTime - lastSpeechRef.current > 1400) {
-          setDutchText(prev => prev + '\n');
-          setEnglishText(prev => prev + '\n');
-          lastTranscriptRef.current = '';
-        }
-
-        // Update the texts with the new transcript
+        // Add newline if there's been a pause longer than 1.4 seconds
+        const shouldAddNewline = currentTime - lastSpeechRef.current > 1400;
+        
         setDutchText(prev => {
-          if (lastTranscriptRef.current === '') {
-            return prev + transcript;
-          }
-          const withoutLast = prev.slice(0, -lastTranscriptRef.current.length);
-          return withoutLast + transcript;
+          const newText = shouldAddNewline ? prev + '\n' + transcript : transcript;
+          return newText;
         });
 
         const mockTranslate = (text: string) => text + " (Translated to English)";
         setEnglishText(prev => {
-          if (lastTranscriptRef.current === '') {
-            return prev + mockTranslate(transcript);
-          }
-          const withoutLast = prev.slice(0, -mockTranslate(lastTranscriptRef.current).length);
-          return withoutLast + mockTranslate(transcript);
+          const newText = shouldAddNewline ? prev + '\n' + mockTranslate(transcript) : mockTranslate(transcript);
+          return newText;
         });
 
-        lastTranscriptRef.current = transcript;
         lastSpeechRef.current = currentTime;
       };
 
@@ -91,7 +78,6 @@ const VoiceTranslator = () => {
       } else {
         setDutchText('');
         setEnglishText('');
-        lastTranscriptRef.current = '';
         recognitionRef.current.start();
         setIsListening(true);
         setError('');
