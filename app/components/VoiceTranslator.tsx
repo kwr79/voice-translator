@@ -4,11 +4,17 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Mic, MicOff, AlertCircle } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
+type SpeechRecognitionResult = {
+  transcript: string;
+}
+
+type SpeechRecognitionResults = {
+  length: number;
+  [index: number]: SpeechRecognitionResult[];
+}
+
 type SpeechRecognitionEvent = {
-  results: {
-    item(index: number): { transcript: string }[];
-    [index: number]: { transcript: string }[];
-  };
+  results: SpeechRecognitionResults;
 }
 
 const VoiceTranslator = () => {
@@ -17,7 +23,6 @@ const VoiceTranslator = () => {
   const [englishText, setEnglishText] = useState('');
   const [error, setError] = useState('');
   
-  // We use any here to avoid type conflicts
   const recognitionRef = useRef<any>(null);
   const lastSpeechRef = useRef<number>(Date.now());
   const currentSentenceRef = useRef<string>('');
@@ -32,7 +37,8 @@ const VoiceTranslator = () => {
 
       recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
         const currentTime = Date.now();
-        const transcript = Array.from(event.results)
+        const results = event.results as unknown as SpeechRecognitionResults;
+        const transcript = Array.from(results)
           .map(result => result[0])
           .map(result => result.transcript)
           .join('');
