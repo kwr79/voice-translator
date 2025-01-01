@@ -1,118 +1,76 @@
-'use client';
-
-import React, { useState, useEffect, useCallback } from 'react';
-import { Mic, MicOff, AlertCircle } from 'lucide-react';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-
-// Simpler type declaration
-interface Window {
-  webkitSpeechRecognition: any;
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  darkMode: ["class"],
+  content: [
+    './pages/**/*.{ts,tsx}',
+    './components/**/*.{ts,tsx}',
+    './app/**/*.{ts,tsx}',
+    './src/**/*.{ts,tsx}',
+  ],
+  theme: {
+    container: {
+      center: true,
+      padding: "2rem",
+      screens: {
+        "2xl": "1400px",
+      },
+    },
+    extend: {
+      colors: {
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+      },
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
+      },
+      keyframes: {
+        "accordion-down": {
+          from: { height: 0 },
+          to: { height: "var(--radix-accordion-content-height)" },
+        },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: 0 },
+        },
+      },
+      animation: {
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
+      },
+    },
+  },
+  plugins: [require("tailwindcss-animate")],
 }
-
-const VoiceTranslator = () => {
-  const [isListening, setIsListening] = useState(false);
-  const [dutchText, setDutchText] = useState('');
-  const [englishText, setEnglishText] = useState('');
-  const [error, setError] = useState('');
-  let recognition: any = null;
-
-  useEffect(() => {
-    if ('webkitSpeechRecognition' in window) {
-      recognition = new (window as any).webkitSpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = 'nl-NL';
-
-      recognition.onresult = (event: any) => {
-        const transcript = Array.from(event.results)
-          .map((result: any) => result[0])
-          .map((result: any) => result.transcript)
-          .join('');
-        
-        setDutchText(transcript);
-        const mockTranslate = (text: string) => {
-          return text + " (Translated to English)";
-        };
-        setEnglishText(mockTranslate(transcript));
-      };
-
-      recognition.onerror = (event: any) => {
-        setError('Error occurred in recognition: ' + event.error);
-      };
-    } else {
-      setError('Speech recognition not supported in this browser');
-    }
-
-    return () => {
-      if (recognition) {
-        recognition.stop();
-      }
-    };
-  }, []);
-
-  const toggleListening = useCallback(() => {
-    if (!recognition) return;
-
-    if (isListening) {
-      recognition.stop();
-      setIsListening(false);
-    } else {
-      recognition.start();
-      setIsListening(true);
-      setError('');
-    }
-  }, [isListening]);
-
-  return (
-    <div className="w-full max-w-6xl mx-auto p-4">
-      {error && (
-        <Alert variant="destructive" className="mb-4">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      <div className="flex flex-col space-y-4">
-        <button
-          onClick={toggleListening}
-          className={`flex items-center justify-center space-x-2 p-4 rounded-lg ${
-            isListening 
-              ? 'bg-red-500 hover:bg-red-600' 
-              : 'bg-blue-500 hover:bg-blue-600'
-          } text-white transition-colors`}
-        >
-          {isListening ? (
-            <>
-              <MicOff className="h-6 w-6" />
-              <span>Stop Listening</span>
-            </>
-          ) : (
-            <>
-              <Mic className="h-6 w-6" />
-              <span>Start Listening</span>
-            </>
-          )}
-        </button>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="p-4 rounded-lg bg-gray-100">
-            <h2 className="text-lg font-semibold mb-2">Dutch (Original)</h2>
-            <div className="min-h-48 p-4 bg-white rounded border">
-              {dutchText || 'Waiting for speech...'}
-            </div>
-          </div>
-
-          <div className="p-4 rounded-lg bg-gray-100">
-            <h2 className="text-lg font-semibold mb-2">English (Translated)</h2>
-            <div className="min-h-48 p-4 bg-white rounded border">
-              {englishText || 'Translation will appear here...'}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default VoiceTranslator;
