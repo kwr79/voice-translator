@@ -25,7 +25,7 @@ const VoiceTranslator = () => {
   
   const recognitionRef = useRef<any>(null);
   const lastSpeechRef = useRef<number>(Date.now());
-  const currentSentenceRef = useRef<string>('');
+  const currentLineRef = useRef<string>('');
 
   useEffect(() => {
     if ('webkitSpeechRecognition' in window) {
@@ -38,30 +38,40 @@ const VoiceTranslator = () => {
       recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
         const currentTime = Date.now();
         const results = event.results as unknown as SpeechRecognitionResults;
-        const transcript = Array.from(results)
-          .map(result => result[0])
-          .map(result => result.transcript)
-          .join('');
+        
+        // Get only the latest result
+        const latestResult = results[results.length - 1];
+        const transcript = latestResult[0].transcript;
         
         if (currentTime - lastSpeechRef.current > 1000) {
-          setDutchText(prev => prev + (prev ? '\n' : '') + transcript);
-          const mockTranslate = (text: string) => {
-            return text + " (Translated to English)";
-          };
-          setEnglishText(prev => prev + (prev ? '\n' : '') + mockTranslate(transcript));
+          // If there's a pause, finalize the current line and start a new one
+          if (currentLineRef.current) {
+            setDutchText(prev => prev + (prev ? '\n' : '') + currentLineRef.current);
+            const mockTranslate = (text: string) => {
+              return text + " (Translated to English)";
+            };
+            setEnglishText(prev => prev + (prev ? '\n' : '') + mockTranslate(currentLineRef.current));
+          }
+          currentLineRef.current = transcript;
         } else {
+          // Update the current line
+          currentLineRef.current = transcript;
+          
+          // Update display with all previous lines plus current line
           setDutchText(prev => {
             const lines = prev.split('\n');
-            lines[lines.length - 1] = transcript;
-            return lines.join('\n');
+            if (lines[lines.length - 1] === '') lines.pop();
+            return [...lines, currentLineRef.current].join('\n');
           });
+          
           const mockTranslate = (text: string) => {
             return text + " (Translated to English)";
           };
+          
           setEnglishText(prev => {
             const lines = prev.split('\n');
-            lines[lines.length - 1] = mockTranslate(transcript);
-            return lines.join('\n');
+            if (lines[lines.length - 1] === '') lines.pop();
+            return [...lines, mockTranslate(currentLineRef.current)].join('\n');
           });
         }
         
@@ -87,9 +97,19 @@ const VoiceTranslator = () => {
       if (isListening) {
         recognitionRef.current.stop();
         setIsListening(false);
+        // Finalize any remaining text when stopping
+        if (currentLineRef.current) {
+          setDutchText(prev => prev + (prev ? '\n' : '') + currentLineRef.current);
+          const mockTranslate = (text: string) => {
+            return text + " (Translated to English)";
+          };
+          setEnglishText(prev => prev + (prev ? '\n' : '') + mockTranslate(currentLineRef.current));
+          currentLineRef.current = '';
+        }
       } else {
         setDutchText('');
         setEnglishText('');
+        currentLineRef.current = '';
         recognitionRef.current.start();
         setIsListening(true);
         setError('');
