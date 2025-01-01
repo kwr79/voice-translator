@@ -4,17 +4,11 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Mic, MicOff, AlertCircle } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
-type SpeechRecognitionResult = {
-  transcript: string;
-}
-
-type SpeechRecognitionResults = {
-  length: number;
-  [index: number]: SpeechRecognitionResult[];
-}
-
-type SpeechRecognitionEvent = {
-  results: SpeechRecognitionResults;
+// Declare the type for our recognition instance
+declare global {
+  interface Window {
+    webkitSpeechRecognition: new () => SpeechRecognition;
+  }
 }
 
 const VoiceTranslator = () => {
@@ -23,40 +17,30 @@ const VoiceTranslator = () => {
   const [englishText, setEnglishText] = useState('');
   const [error, setError] = useState('');
   
-  const recognitionRef = useRef<any>(null);
-  const lastSpeechRef = useRef<number>(Date.now());
+  // Use useRef for the recognition instance
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   useEffect(() => {
     if ('webkitSpeechRecognition' in window) {
-      const SpeechRecognition = window.webkitSpeechRecognition;
-      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current = new window.webkitSpeechRecognition();
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
       recognitionRef.current.lang = 'nl-NL';
 
       recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
-        const currentTime = Date.now();
-        const results = event.results as unknown as SpeechRecognitionResults;
-        const transcript = results[results.length - 1][0].transcript;
-
-        // Add newline if there's been a pause longer than 1.4 seconds
-        const shouldAddNewline = currentTime - lastSpeechRef.current > 1400;
+        const transcript = Array.from(event.results)
+          .map(result => result[0])
+          .map(result => result.transcript)
+          .join('');
         
-        setDutchText(prev => {
-          const newText = shouldAddNewline ? prev + '\n' + transcript : transcript;
-          return newText;
-        });
-
-        const mockTranslate = (text: string) => text + " (Translated to English)";
-        setEnglishText(prev => {
-          const newText = shouldAddNewline ? prev + '\n' + mockTranslate(transcript) : mockTranslate(transcript);
-          return newText;
-        });
-
-        lastSpeechRef.current = currentTime;
+        setDutchText(transcript);
+        const mockTranslate = (text: string) => {
+          return text + " (Translated to English)";
+        };
+        setEnglishText(mockTranslate(transcript));
       };
 
-      recognitionRef.current.onerror = (event: any) => {
+      recognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
         setError('Error occurred in recognition: ' + event.error);
       };
     } else {
@@ -76,12 +60,9 @@ const VoiceTranslator = () => {
         recognitionRef.current.stop();
         setIsListening(false);
       } else {
-        setDutchText('');
-        setEnglishText('');
         recognitionRef.current.start();
         setIsListening(true);
         setError('');
-        lastSpeechRef.current = Date.now();
       }
     }
   }, [isListening]);
@@ -121,14 +102,14 @@ const VoiceTranslator = () => {
         <div className="grid grid-cols-2 gap-4">
           <div className="p-4 rounded-lg bg-gray-100">
             <h2 className="text-lg font-semibold mb-2">Dutch (Original)</h2>
-            <div className="min-h-[12rem] p-4 bg-white rounded border whitespace-pre-line">
+            <div className="min-h-48 p-4 bg-white rounded border">
               {dutchText || 'Waiting for speech...'}
             </div>
           </div>
 
           <div className="p-4 rounded-lg bg-gray-100">
             <h2 className="text-lg font-semibold mb-2">English (Translated)</h2>
-            <div className="min-h-[12rem] p-4 bg-white rounded border whitespace-pre-line">
+            <div className="min-h-48 p-4 bg-white rounded border">
               {englishText || 'Translation will appear here...'}
             </div>
           </div>
