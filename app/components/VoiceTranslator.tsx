@@ -25,7 +25,7 @@ const VoiceTranslator = () => {
   
   const recognitionRef = useRef<any>(null);
   const lastSpeechRef = useRef<number>(Date.now());
-  const currentLineRef = useRef<string>('');
+  const lastTranscriptRef = useRef<string>('');
 
   useEffect(() => {
     if ('webkitSpeechRecognition' in window) {
@@ -38,43 +38,34 @@ const VoiceTranslator = () => {
       recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
         const currentTime = Date.now();
         const results = event.results as unknown as SpeechRecognitionResults;
-        
-        // Get only the latest result
-        const latestResult = results[results.length - 1];
-        const transcript = latestResult[0].transcript;
-        
-        if (currentTime - lastSpeechRef.current > 1000) {
-          // If there's a pause, finalize the current line and start a new one
-          if (currentLineRef.current) {
-            setDutchText(prev => prev + (prev ? '\n' : '') + currentLineRef.current);
-            const mockTranslate = (text: string) => {
-              return text + " (Translated to English)";
-            };
-            setEnglishText(prev => prev + (prev ? '\n' : '') + mockTranslate(currentLineRef.current));
-          }
-          currentLineRef.current = transcript;
-        } else {
-          // Update the current line
-          currentLineRef.current = transcript;
-          
-          // Update display with all previous lines plus current line
-          setDutchText(prev => {
-            const lines = prev.split('\n');
-            if (lines[lines.length - 1] === '') lines.pop();
-            return [...lines, currentLineRef.current].join('\n');
-          });
-          
-          const mockTranslate = (text: string) => {
-            return text + " (Translated to English)";
-          };
-          
-          setEnglishText(prev => {
-            const lines = prev.split('\n');
-            if (lines[lines.length - 1] === '') lines.pop();
-            return [...lines, mockTranslate(currentLineRef.current)].join('\n');
-          });
+        const transcript = results[results.length - 1][0].transcript;
+
+        // If there's been a pause of more than 1.4 seconds, add a newline
+        if (currentTime - lastSpeechRef.current > 1400) {
+          setDutchText(prev => prev + '\n');
+          setEnglishText(prev => prev + '\n');
+          lastTranscriptRef.current = '';
         }
-        
+
+        // Update the texts with the new transcript
+        setDutchText(prev => {
+          if (lastTranscriptRef.current === '') {
+            return prev + transcript;
+          }
+          const withoutLast = prev.slice(0, -lastTranscriptRef.current.length);
+          return withoutLast + transcript;
+        });
+
+        const mockTranslate = (text: string) => text + " (Translated to English)";
+        setEnglishText(prev => {
+          if (lastTranscriptRef.current === '') {
+            return prev + mockTranslate(transcript);
+          }
+          const withoutLast = prev.slice(0, -mockTranslate(lastTranscriptRef.current).length);
+          return withoutLast + mockTranslate(transcript);
+        });
+
+        lastTranscriptRef.current = transcript;
         lastSpeechRef.current = currentTime;
       };
 
@@ -97,19 +88,10 @@ const VoiceTranslator = () => {
       if (isListening) {
         recognitionRef.current.stop();
         setIsListening(false);
-        // Finalize any remaining text when stopping
-        if (currentLineRef.current) {
-          setDutchText(prev => prev + (prev ? '\n' : '') + currentLineRef.current);
-          const mockTranslate = (text: string) => {
-            return text + " (Translated to English)";
-          };
-          setEnglishText(prev => prev + (prev ? '\n' : '') + mockTranslate(currentLineRef.current));
-          currentLineRef.current = '';
-        }
       } else {
         setDutchText('');
         setEnglishText('');
-        currentLineRef.current = '';
+        lastTranscriptRef.current = '';
         recognitionRef.current.start();
         setIsListening(true);
         setError('');
