@@ -4,37 +4,11 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Mic, MicOff, AlertCircle } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
-// Define types for Speech Recognition
-interface SpeechRecognitionResult {
-  transcript: string;
-  confidence: number;
-}
-
-interface SpeechRecognitionResultList {
-  length: number;
-  item(index: number): SpeechRecognitionResult[];
-  [index: number]: SpeechRecognitionResult[];
-}
-
-interface SpeechRecognitionEvent {
-  results: SpeechRecognitionResultList;
-  resultIndex: number;
-}
-
-interface SpeechRecognition extends EventTarget {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onresult: (event: SpeechRecognitionEvent) => void;
-  onerror: (event: any) => void;
-  start: () => void;
-  stop: () => void;
-}
-
-declare global {
-  interface Window {
-    webkitSpeechRecognition: new () => SpeechRecognition;
-  }
+type SpeechRecognitionEvent = {
+  results: {
+    item(index: number): { transcript: string }[];
+    [index: number]: { transcript: string }[];
+  };
 }
 
 const VoiceTranslator = () => {
@@ -43,13 +17,15 @@ const VoiceTranslator = () => {
   const [englishText, setEnglishText] = useState('');
   const [error, setError] = useState('');
   
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  // We use any here to avoid type conflicts
+  const recognitionRef = useRef<any>(null);
   const lastSpeechRef = useRef<number>(Date.now());
   const currentSentenceRef = useRef<string>('');
 
   useEffect(() => {
     if ('webkitSpeechRecognition' in window) {
-      recognitionRef.current = new window.webkitSpeechRecognition();
+      const SpeechRecognition = window.webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
       recognitionRef.current.lang = 'nl-NL';
@@ -57,7 +33,7 @@ const VoiceTranslator = () => {
       recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
         const currentTime = Date.now();
         const transcript = Array.from(event.results)
-          .map(result => result[0] as SpeechRecognitionResult)
+          .map(result => result[0])
           .map(result => result.transcript)
           .join('');
         
