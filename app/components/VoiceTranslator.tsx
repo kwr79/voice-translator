@@ -4,11 +4,17 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Mic, MicOff, AlertCircle } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
-// Declare the type for our recognition instance
-declare global {
-  interface Window {
-    webkitSpeechRecognition: new () => SpeechRecognition;
-  }
+type SpeechRecognitionResult = {
+  transcript: string;
+}
+
+type SpeechRecognitionResults = {
+  length: number;
+  [index: number]: SpeechRecognitionResult[];
+}
+
+type SpeechRecognitionEvent = {
+  results: SpeechRecognitionResults;
 }
 
 const VoiceTranslator = () => {
@@ -17,30 +23,40 @@ const VoiceTranslator = () => {
   const [englishText, setEnglishText] = useState('');
   const [error, setError] = useState('');
   
-  // Use useRef for the recognition instance
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<any>(null);
+  const lastSpeechRef = useRef<number>(Date.now());
 
   useEffect(() => {
     if ('webkitSpeechRecognition' in window) {
-      recognitionRef.current = new window.webkitSpeechRecognition();
+      const SpeechRecognition = window.webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
       recognitionRef.current.lang = 'nl-NL';
 
       recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
-        const transcript = Array.from(event.results)
-          .map(result => result[0])
-          .map(result => result.transcript)
-          .join('');
-        
-        setDutchText(transcript);
-        const mockTranslate = (text: string) => {
-          return text + " (Translated to English)";
-        };
-        setEnglishText(mockTranslate(transcript));
+        const currentTime = Date.now();
+        const timeSinceLastSpeech = currentTime - lastSpeechRef.current;
+        const results = event.results as unknown as SpeechRecognitionResults;
+        const transcript = results[results.length - 1][0].transcript;
+
+        setDutchText(prev => {
+          // Add a newline if there's been a long pause and we're not at the start
+          const prefix = (timeSinceLastSpeech > 1400 && prev.length > 0) ? '\n' : '';
+          // If no prefix needed, just append/update the text
+          return prev + prefix + transcript;
+        });
+
+        const mockTranslate = (text: string) => text + " (Translated to English)";
+        setEnglishText(prev => {
+          const prefix = (timeSinceLastSpeech > 1400 && prev.length > 0) ? '\n' : '';
+          return prev + prefix + mockTranslate(transcript);
+        });
+
+        lastSpeechRef.current = currentTime;
       };
 
-      recognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
+      recognitionRef.current.onerror = (event: any) => {
         setError('Error occurred in recognition: ' + event.error);
       };
     } else {
@@ -60,9 +76,12 @@ const VoiceTranslator = () => {
         recognitionRef.current.stop();
         setIsListening(false);
       } else {
+        setDutchText('');
+        setEnglishText('');
         recognitionRef.current.start();
         setIsListening(true);
         setError('');
+        lastSpeechRef.current = Date.now();
       }
     }
   }, [isListening]);
@@ -102,14 +121,14 @@ const VoiceTranslator = () => {
         <div className="grid grid-cols-2 gap-4">
           <div className="p-4 rounded-lg bg-gray-100">
             <h2 className="text-lg font-semibold mb-2">Dutch (Original)</h2>
-            <div className="min-h-48 p-4 bg-white rounded border">
+            <div className="min-h-[12rem] p-4 bg-white rounded border whitespace-pre-line">
               {dutchText || 'Waiting for speech...'}
             </div>
           </div>
 
           <div className="p-4 rounded-lg bg-gray-100">
             <h2 className="text-lg font-semibold mb-2">English (Translated)</h2>
-            <div className="min-h-48 p-4 bg-white rounded border">
+            <div className="min-h-[12rem] p-4 bg-white rounded border whitespace-pre-line">
               {englishText || 'Translation will appear here...'}
             </div>
           </div>
