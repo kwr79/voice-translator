@@ -1,35 +1,53 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Mic, MicOff } from 'lucide-react';
+import { Mic, MicOff, AlertCircle } from 'lucide-react';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+
+// Simpler type declaration
+interface Window {
+  webkitSpeechRecognition: any;
+}
 
 const VoiceTranslator = () => {
   const [isListening, setIsListening] = useState(false);
   const [dutchText, setDutchText] = useState('');
   const [englishText, setEnglishText] = useState('');
-  const [recognition, setRecognition] = useState(null);
+  const [error, setError] = useState('');
+  let recognition: any = null;
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
-      const recognitionInstance = new (window as any).webkitSpeechRecognition();
-      recognitionInstance.continuous = true;
-      recognitionInstance.interimResults = true;
-      recognitionInstance.lang = 'nl-NL';
+    if ('webkitSpeechRecognition' in window) {
+      recognition = new (window as any).webkitSpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'nl-NL';
 
-      recognitionInstance.onresult = (event: any) => {
+      recognition.onresult = (event: any) => {
         const transcript = Array.from(event.results)
           .map((result: any) => result[0])
           .map((result: any) => result.transcript)
           .join('');
         
         setDutchText(transcript);
-        
-        // Mock translation - in a real app, you'd call a translation API
-        setEnglishText(transcript + ' (Translated to English)');
+        const mockTranslate = (text: string) => {
+          return text + " (Translated to English)";
+        };
+        setEnglishText(mockTranslate(transcript));
       };
 
-      setRecognition(recognitionInstance);
+      recognition.onerror = (event: any) => {
+        setError('Error occurred in recognition: ' + event.error);
+      };
+    } else {
+      setError('Speech recognition not supported in this browser');
     }
+
+    return () => {
+      if (recognition) {
+        recognition.stop();
+      }
+    };
   }, []);
 
   const toggleListening = useCallback(() => {
@@ -41,15 +59,28 @@ const VoiceTranslator = () => {
     } else {
       recognition.start();
       setIsListening(true);
+      setError('');
     }
-  }, [isListening, recognition]);
+  }, [isListening]);
 
   return (
     <div className="w-full max-w-6xl mx-auto p-4">
+      {error && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       <div className="flex flex-col space-y-4">
         <button
           onClick={toggleListening}
-          className="flex items-center justify-center space-x-2 p-4 rounded-lg bg-blue-500 hover:bg-blue-600 text-white transition-colors"
+          className={`flex items-center justify-center space-x-2 p-4 rounded-lg ${
+            isListening 
+              ? 'bg-red-500 hover:bg-red-600' 
+              : 'bg-blue-500 hover:bg-blue-600'
+          } text-white transition-colors`}
         >
           {isListening ? (
             <>
