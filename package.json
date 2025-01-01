@@ -3,10 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "mkdir -p public && next build",
-    "start": "next start",
-    "lint": "next lint"
+    "build": "next build",
+    "start": "next start"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.0.5",
