@@ -1,14 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Mic, MicOff, AlertCircle } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
-// Declare the type for our recognition instance
-declare global {
-  interface Window {
-    webkitSpeechRecognition: new () => SpeechRecognition;
-  }
+// Simpler type declaration
+interface Window {
+  webkitSpeechRecognition: any;
 }
 
 const VoiceTranslator = () => {
@@ -16,21 +14,19 @@ const VoiceTranslator = () => {
   const [dutchText, setDutchText] = useState('');
   const [englishText, setEnglishText] = useState('');
   const [error, setError] = useState('');
-  
-  // Use useRef for the recognition instance
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  let recognition: any = null;
 
   useEffect(() => {
     if ('webkitSpeechRecognition' in window) {
-      recognitionRef.current = new window.webkitSpeechRecognition();
-      recognitionRef.current.continuous = true;
-      recognitionRef.current.interimResults = true;
-      recognitionRef.current.lang = 'nl-NL';
+      recognition = new (window as any).webkitSpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'nl-NL';
 
-      recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
+      recognition.onresult = (event: any) => {
         const transcript = Array.from(event.results)
-          .map(result => result[0])
-          .map(result => result.transcript)
+          .map((result: any) => result[0])
+          .map((result: any) => result.transcript)
           .join('');
         
         setDutchText(transcript);
@@ -40,7 +36,7 @@ const VoiceTranslator = () => {
         setEnglishText(mockTranslate(transcript));
       };
 
-      recognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
+      recognition.onerror = (event: any) => {
         setError('Error occurred in recognition: ' + event.error);
       };
     } else {
@@ -48,22 +44,22 @@ const VoiceTranslator = () => {
     }
 
     return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
+      if (recognition) {
+        recognition.stop();
       }
     };
   }, []);
 
   const toggleListening = useCallback(() => {
-    if (recognitionRef.current) {
-      if (isListening) {
-        recognitionRef.current.stop();
-        setIsListening(false);
-      } else {
-        recognitionRef.current.start();
-        setIsListening(true);
-        setError('');
-      }
+    if (!recognition) return;
+
+    if (isListening) {
+      recognition.stop();
+      setIsListening(false);
+    } else {
+      recognition.start();
+      setIsListening(true);
+      setError('');
     }
   }, [isListening]);
 
