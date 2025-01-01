@@ -4,58 +4,68 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Mic, MicOff, AlertCircle } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
+// Define the type for our SpeechRecognition instance
+declare global {
+  interface Window {
+    webkitSpeechRecognition: any;
+  }
+}
+
 const VoiceTranslator = () => {
   const [isListening, setIsListening] = useState(false);
   const [dutchText, setDutchText] = useState('');
   const [englishText, setEnglishText] = useState('');
   const [error, setError] = useState('');
   
-  const recognitionRef = useRef(null);
-  const lastSpeechRef = useRef(Date.now());
-  const currentSentenceRef = useRef('');
+  // Define the type for our recognition ref
+  const recognitionRef = useRef<any>(null);
+  const lastSpeechRef = useRef<number>(Date.now());
+  const currentSentenceRef = useRef<string>('');
 
   useEffect(() => {
     if ('webkitSpeechRecognition' in window) {
       recognitionRef.current = new window.webkitSpeechRecognition();
-      recognitionRef.current.continuous = true;
-      recognitionRef.current.interimResults = true;
-      recognitionRef.current.lang = 'nl-NL';
+      if (recognitionRef.current) {
+        recognitionRef.current.continuous = true;
+        recognitionRef.current.interimResults = true;
+        recognitionRef.current.lang = 'nl-NL';
 
-      recognitionRef.current.onresult = (event) => {
-        const currentTime = Date.now();
-        const transcript = Array.from(event.results)
-          .map(result => result[0])
-          .map(result => result.transcript)
-          .join('');
-        
-        if (currentTime - lastSpeechRef.current > 1000) {
-          setDutchText(prev => prev + (prev ? '\n' : '') + transcript);
-          const mockTranslate = (text) => {
-            return text + " (Translated to English)";
-          };
-          setEnglishText(prev => prev + (prev ? '\n' : '') + mockTranslate(transcript));
-        } else {
-          setDutchText(prev => {
-            const lines = prev.split('\n');
-            lines[lines.length - 1] = transcript;
-            return lines.join('\n');
-          });
-          const mockTranslate = (text) => {
-            return text + " (Translated to English)";
-          };
-          setEnglishText(prev => {
-            const lines = prev.split('\n');
-            lines[lines.length - 1] = mockTranslate(transcript);
-            return lines.join('\n');
-          });
-        }
-        
-        lastSpeechRef.current = currentTime;
-      };
+        recognitionRef.current.onresult = (event: any) => {
+          const currentTime = Date.now();
+          const transcript = Array.from(event.results)
+            .map(result => result[0])
+            .map(result => result.transcript)
+            .join('');
+          
+          if (currentTime - lastSpeechRef.current > 1000) {
+            setDutchText(prev => prev + (prev ? '\n' : '') + transcript);
+            const mockTranslate = (text: string) => {
+              return text + " (Translated to English)";
+            };
+            setEnglishText(prev => prev + (prev ? '\n' : '') + mockTranslate(transcript));
+          } else {
+            setDutchText(prev => {
+              const lines = prev.split('\n');
+              lines[lines.length - 1] = transcript;
+              return lines.join('\n');
+            });
+            const mockTranslate = (text: string) => {
+              return text + " (Translated to English)";
+            };
+            setEnglishText(prev => {
+              const lines = prev.split('\n');
+              lines[lines.length - 1] = mockTranslate(transcript);
+              return lines.join('\n');
+            });
+          }
+          
+          lastSpeechRef.current = currentTime;
+        };
 
-      recognitionRef.current.onerror = (event) => {
-        setError('Error occurred in recognition: ' + event.error);
-      };
+        recognitionRef.current.onerror = (event: any) => {
+          setError('Error occurred in recognition: ' + event.error);
+        };
+      }
     } else {
       setError('Speech recognition not supported in this browser');
     }
